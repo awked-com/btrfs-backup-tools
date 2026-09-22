@@ -75,7 +75,7 @@ func RetainedBackups(backups []Backup, now time.Time, policy Policy) map[string]
 		return ordered[i].ReceivedAt.Before(ordered[j].ReceivedAt)
 	})
 	keep[ordered[len(ordered)-1].Path] = true
-	buckets := map[string]string{}
+	buckets := [3]map[int64]bool{{}, {}, {}}
 	today := civilDay(now)
 	for _, backup := range ordered {
 		date := backup.SnapshotTime.In(time.Local)
@@ -92,17 +92,11 @@ func RetainedBackups(backups []Backup, now time.Time, policy Policy) map[string]
 		values := []int64{day, week, month}
 		limits := []int{policy.Days, policy.Weeks, policy.Months}
 		for tier, age := range ages {
-			if age >= 0 && age <= int64(limits[tier]) {
-				key := fmt.Sprintf("%d:%d", tier, values[tier])
-				if _, ok := buckets[key]; !ok {
-					buckets[key] = backup.Path
-				}
+			if age >= 0 && age <= int64(limits[tier]) && !buckets[tier][values[tier]] {
+				buckets[tier][values[tier]] = true
+				keep[backup.Path] = true
 			}
 		}
-	}
-
-	for _, path := range buckets {
-		keep[path] = true
 	}
 
 	return keep

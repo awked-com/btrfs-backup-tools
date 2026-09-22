@@ -31,12 +31,13 @@ func ProcessIdentity(pid int) (uint64, uint32, error) {
 		return 0, 0, errors.New("invalid process stat")
 	}
 
+	// The command name may contain spaces or ')'; fields after it start at field 3.
 	fields := strings.Fields(string(data[end+1:]))
 	if len(fields) <= 19 {
 		return 0, 0, errors.New("invalid process stat")
 	}
 
-	start, err := strconv.ParseUint(fields[19], 10, 64)
+	start, err := strconv.ParseUint(fields[19], 10, 64) // starttime is field 22.
 	if err != nil {
 		return 0, 0, err
 	}
@@ -198,21 +199,19 @@ func SignalBuffer(gate string, requested unix.Signal) error {
 	if err != nil {
 		return err
 	}
+	defer unix.Close(fd)
 
 	var info unix.Stat_t
 	if err = unix.Fstat(fd, &info); err != nil {
-		unix.Close(fd)
 		return err
 	}
 
 	if info.Mode&unix.S_IFMT != unix.S_IFREG {
-		unix.Close(fd)
 		return nil
 	}
 
 	data := make([]byte, 128)
 	count, err := unix.Read(fd, data)
-	unix.Close(fd)
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,8 @@
 # Btrfs backup tools
 
-Linux helpers for receiving Btrfs backups through a restricted SSH command,
-checking received replicas, applying retention, and pausing transfers outside an
-allowed window. The `backup` Go package exposes replica metadata and retention
-logic for monitoring clients.
+Linux helpers for restricted SSH receives, replica inspection, retention, and
+transfer windows. The `backup` Go package exposes replica metadata and retention
+logic to monitoring clients.
 
 ## Build
 
@@ -41,7 +40,7 @@ account before running. Keep all helpers together in the same `bin` directory.
 
 ## Configuration
 
-Example receiver configuration (adjust paths and limits for your machine):
+Receiver configuration:
 
 ```json
 {
@@ -64,15 +63,17 @@ Example receiver configuration (adjust paths and limits for your machine):
 }
 ```
 
-The backup root must be a mount point. Provision the target, staging, and lock
-parent directories before use; staging and targets must share a Btrfs filesystem.
-Use administrator-controlled configuration, wrappers, and directory ancestors.
+The backup root must be a mount point. Provision the target and staging
+directories on the same Btrfs filesystem, and create the lock files as root-owned
+regular files without group or other write permission. Staging must be private
+to root; target directory ancestors must be root-owned and protected from writes.
+Use administrator-controlled configuration and wrappers.
 Configure SSH forced commands and narrow passwordless sudo rules for the fixed
 INFO and RECEIVE wrappers. Do not grant the sender arbitrary root commands or
 allow it to choose a receiver configuration. `--sudo` defaults to PATH lookup;
 pass an absolute path in service configuration.
 
-Example retention configuration:
+Retention configuration:
 
 ```json
 {
@@ -90,8 +91,13 @@ confirm the receiver is inactive before manually removing failed state.
 
 ## Development
 
-Run `go test ./...` and `go vet ./...`. Linux CI additionally runs the race detector
-on x86_64 and aarch64, including transfer-window process control tests. Tests cover
-command rejection, malformed configuration, confinement arguments, interrupted
-receives, changed replicas, and retention. No infrastructure repository, hosts,
-credentials, or NixOS configuration are needed. Version tags use `vX.Y.Z`.
+```sh
+go test -race ./...
+go vet ./...
+go build ./...
+test -z "$(gofmt -l .)"
+```
+
+Linux CI runs on x86_64 and aarch64. Transfer-window process tests require Linux;
+the remaining tests use temporary directories and a fake Btrfs backend. Version
+tags use `vX.Y.Z`.
